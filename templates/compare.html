@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}
+Compare Compounds - TPSD
+{% endblock %}
+
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<a href="javascript:window.close();" class="back-button">
+    Back to Results
+</a>
+
+<h1>Compare Compounds</h1>
+
+{% if not compounds %}
+    <p id="statusMessage">Select at least two compounds from search results to compare their spectra.</p>
+{% else %}
+    <p id="statusMessage">
+        Comparing {{ compounds|length }} selected compound(s). Use the controls below to customize the Chart.js spectra view.
+    </p>
+
+    <h2>Selected Compounds</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Compound ID</th>
+                <th>Compound Name</th>
+                <th>Lab Code</th>
+                <th>Absorption λmax (nm)</th>
+                <th>Emission λmax (nm)</th>
+                <th>Quantum Yield</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for compound in compounds %}
+            <tr>
+                <td>{{ compound.compound_id }}</td>
+                <td>{{ compound.compound_name }}</td>
+                <td>{{ compound.lab_code or "-" }}</td>
+                <td>{{ compound.absorption_lambda_max_nm or "-" }}</td>
+                <td>{{ compound.emission_lambda_max_nm or "-" }}</td>
+                <td>{{ compound.quantum_yield or "-" }}</td>
+                <td>
+                    <a class="detail-button" href="{{ url_for('compound_detail', compound_id=compound.compound_id) }}" target="_blank" rel="noopener noreferrer">
+                        View Details
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Spectra View</h2>
+
+    <form id="plotCustomizer" class="plot-customizer">
+        <input type="hidden" name="ids" value="{{ selected_ids }}">
+
+        <fieldset class="compare-spectrum-options">
+            <legend>Spectra to show</legend>
+            <label>
+                <input type="checkbox" name="spectra" value="absorption" {% if show_absorption %}checked{% endif %}>
+                Absorption
+            </label>
+            <label>
+                <input type="checkbox" name="spectra" value="fluorescence" {% if show_fluorescence %}checked{% endif %}>
+                Emission
+            </label>
+        </fieldset>
+
+        <div class="plot-control-grid">
+            <div class="form-section">
+                <label for="x_min">Wavelength Min (nm):</label>
+                <input type="number" step="any" id="x_min" name="x_min" value="{{ plot_options.x_min if plot_options.x_min is not none else '' }}">
+            </div>
+
+            <div class="form-section">
+                <label for="x_max">Wavelength Max (nm):</label>
+                <input type="number" step="any" id="x_max" name="x_max" value="{{ plot_options.x_max if plot_options.x_max is not none else '' }}">
+            </div>
+
+            <div class="form-section">
+                <label for="line_width">Line Width:</label>
+                <input type="number" step="0.5" min="0.5" max="6" id="line_width" name="line_width" value="{{ plot_options.line_width }}">
+            </div>
+        </div>
+
+        <div class="plot-toggle-row">
+            <label>
+                <input type="checkbox" name="normalize" value="1" {% if plot_options.normalize %}checked{% endif %}>
+                Normalize curves
+            </label>
+            <label>
+                <input type="checkbox" name="grid" value="1" {% if plot_options.show_grid %}checked{% endif %}>
+                Show grid
+            </label>
+        </div>
+
+        <div class="button-row">
+            <button type="button" id="updateChartsBtn">Update Plots</button>
+            <button type="button" id="resetChartsBtn">Reset Plot Settings</button>
+        </div>
+    </form>
+
+    <div class="spectra-grid">
+        <section class="spectra-panel" id="absorptionPanel">
+            <h3>Absorption</h3>
+            <p class="chart-message" id="absorptionMessage"></p>
+            <div class="chart-frame">
+                <canvas id="absorptionChart"></canvas>
+            </div>
+        </section>
+
+        <section class="spectra-panel" id="fluorescencePanel">
+            <h3>Emission</h3>
+            <p class="chart-message" id="fluorescenceMessage"></p>
+            <div class="chart-frame">
+                <canvas id="fluorescenceChart"></canvas>
+            </div>
+        </section>
+    </div>
+
+    <script>
+    const compareChartData = {{ chart_data|tojson }};
+    const chartColors = [
+        "#0066cc", "#d1495b", "#2a9d8f", "#f4a261", "#6d597a",
+        "#457b9d", "#8ab17d", "#b56576", "#4d908e", "#f77f00"
+    ];
+    const charts = {};
+
+    function getPlotControls() {
+        return {
+            showAbsorption: document.querySelector('input[name="spectra"][value="absorption"]').checked,
+            showFluorescence: document.querySelector('input[name="spectra"][value="fluorescence"]').checked,
+            normalize: document.querySelector('input[name="normalize"]').checked,
+            showGrid: document.querySelector('input[name="grid"]').checked,
+            lineWidth: Number(document.getElementById("line_width").value) || 2,
+            xMin: document.getElementById("x_min").value === "" ? null : Number(document.getElementById("x_min").value),
+            xMax: document.getElementById("x_max").value === "" ? null : Number(document.getElementById("x_max").value)
+        };
+    }
+
+    function prepareDatasets(series, controls) {
+        return series.map((row, index) => {
+            let points = row.data.filter(point => {
+                return (controls.xMin === null || point.x >= controls.xMin) &&
+                       (controls.xMax === null || point.x <= controls.xMax);
+            });
+
+            if (controls.normalize) {
+                const maxValue = Math.max(...points.map(point => Math.abs(point.y)));
+                if (maxValue > 0) {
+                    points = points.map(point => ({ x: point.x, y: point.y / maxValue }));
+                }
+            }
+
+            const color = chartColors[index % chartColors.length];
+            return {
+                label: row.label,
+                data: points,
+                borderColor: color,
+                backgroundColor: color,
+                borderWidth: controls.lineWidth,
+                pointRadius: 0,
+                tension: 0
+            };
+        }).filter(dataset => dataset.data.length > 0);
+    }
+
+    function renderChart(chartKey, canvasId, panelId, messageId, title, yTitle, shouldShow) {
+        const panel = document.getElementById(panelId);
+        const message = document.getElementById(messageId);
+        const frame = panel.querySelector(".chart-frame");
+        const controls = getPlotControls();
+        const datasets = prepareDatasets(compareChartData[chartKey] || [], controls);
+
+        panel.style.display = shouldShow ? "block" : "none";
+        if (!shouldShow) {
+            return;
+        }
+
+        if (datasets.length === 0) {
+            frame.style.display = "none";
+            message.textContent = `No usable ${title.toLowerCase()} files were found for the selected settings.`;
+            return;
+        }
+
+        frame.style.display = "block";
+        message.textContent = "";
+
+        if (charts[chartKey]) {
+            charts[chartKey].destroy();
+        }
+
+        charts[chartKey] = new Chart(document.getElementById(canvasId), {
+            type: "line",
+            data: { datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                parsing: false,
+                interaction: {
+                    mode: "nearest",
+                    intersect: false
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: title
+                    },
+                    legend: {
+                        position: "bottom"
+                    }
+                },
+                scales: {
+                    x: {
+                        type: "linear",
+                        title: {
+                            display: true,
+                            text: "Wavelength (nm)"
+                        },
+                        grid: {
+                            display: controls.showGrid
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: controls.normalize ? "Normalized signal" : yTitle
+                        },
+                        grid: {
+                            display: controls.showGrid
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderCompareCharts() {
+        if (typeof Chart === "undefined") {
+            document.querySelectorAll(".chart-message").forEach(message => {
+                message.textContent = "Chart.js could not load. Check your network connection and reload the page.";
+            });
+            return;
+        }
+
+        const controls = getPlotControls();
+        renderChart("absorption", "absorptionChart", "absorptionPanel", "absorptionMessage", "Absorption Spectra Comparison", "Absorbance", controls.showAbsorption);
+        renderChart("fluorescence", "fluorescenceChart", "fluorescencePanel", "fluorescenceMessage", "Emission Spectra Comparison", "Intensity", controls.showFluorescence);
+    }
+
+    document.getElementById("plotCustomizer").addEventListener("submit", function(event) {
+        event.preventDefault();
+        renderCompareCharts();
+    });
+    document.getElementById("updateChartsBtn").addEventListener("click", renderCompareCharts);
+    document.getElementById("resetChartsBtn").addEventListener("click", function() {
+        document.querySelector('input[name="spectra"][value="absorption"]').checked = true;
+        document.querySelector('input[name="spectra"][value="fluorescence"]').checked = true;
+        document.querySelector('input[name="normalize"]').checked = true;
+        document.querySelector('input[name="grid"]').checked = true;
+        document.getElementById("line_width").value = "2";
+        document.getElementById("x_min").value = "";
+        document.getElementById("x_max").value = "";
+        renderCompareCharts();
+    });
+
+    document.querySelectorAll("#plotCustomizer input").forEach(input => {
+        input.addEventListener("change", renderCompareCharts);
+    });
+
+    renderCompareCharts();
+    </script>
+{% endif %}
+
+{% endblock %}

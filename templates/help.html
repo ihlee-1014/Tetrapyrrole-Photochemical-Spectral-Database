@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}
+Help - TPSD
+{% endblock %}
+
+{% block content %}
+
+<h1>Help Page</h1>
+
+<p>
+Welcome to the Tetrapyrrole Photochemical Spectral Database (TPSD) help page.
+Click each section title below to expand or collapse the content.
+</p>
+
+<details class="help-section" open>
+    <summary>1. About This Database</summary>
+    <div class="help-content">
+        <p>
+        The Tetrapyrrole Photochemical Spectral Database (TPSD) is designed to organize
+        and provide access to chemical and spectral data for tetrapyrrole compounds.
+        The database contains information related to compound identity, absorption spectra,
+        fluorescence spectra, solvent conditions, fluorescence quantum yield, and
+        literature references.
+        </p>
+
+        <p>
+        This database is intended to help users search, compare, and review spectral
+        properties of compounds for research and educational purposes.
+        </p>
+
+        <p>
+        The home page also displays current database statistics, an update log, and
+        external links to related literature and the Lindsey Lab.
+        </p>
+    </div>
+</details>
+
+<details class="help-section">
+    <summary>2. What You Can Search</summary>
+    <div class="help-content">
+        <p>
+        Users may search the database using one or more of the following criteria:
+        </p>
+
+        <ul>
+            <li><strong>Compound Name</strong> – search for a specific compound by name</li>
+            <li><strong>Solvent</strong> – find records measured in a specific solvent</li>
+            <li><strong>Absorption Wavelength Range</strong> – search for compounds with absorption maxima in a selected range</li>
+            <li><strong>Emission Wavelength Range</strong> – search for compounds with fluorescence emission maxima in a selected range</li>
+        </ul>
+
+        <p>
+        Users may enter one search condition or combine multiple filters to narrow the results.
+        </p>
+    </div>
+</details>
+
+<details class="help-section">
+    <summary>3. How to Search the Database</summary>
+    <div class="help-content">
+        <h3>3.1 Search by Compound Name</h3>
+        <p>
+        Enter the name of a compound in the Compound Name field and click the Search button.
+        This option is useful if you already know which compound you want to examine.
+        </p>
+
+        <h3>3.2 Search by Solvent</h3>
+        <p>
+        Enter the solvent name to find measurements recorded in a specific solvent.
+        This can help users compare spectral properties under different experimental conditions.
+        </p>
+
+        <h3>3.3 Search by Absorption Wavelength</h3>
+        <p>
+        Enter a minimum and/or maximum absorption wavelength value in nanometers (nm).
+        The database will return compounds whose absorption maximum falls within that range.
+        </p>
+
+        <h3>3.4 Search by Emission Wavelength</h3>
+        <p>
+        Enter a minimum and/or maximum emission wavelength value in nanometers (nm)
+        to identify compounds with fluorescence emission maxima in the selected range.
+        </p>
+
+        <h3>3.5 Combine Multiple Filters</h3>
+        <p>
+        Users may combine multiple fields in one search. Using more than one filter usually produces a smaller and more specific result set.
+        </p>
+    </div>
+</details>
+
+<details class="help-section">
+    <summary>4. Example Searches</summary>
+    <div class="help-content">
+    
+    <img src="{{ url_for('static', filename='images/help_search_example.png') }}"
+             alt="Example search form"
+             class="help-screenshot">
+
+    </div>
+</details>
+
+<details class="help-section">
+    <summary>5. Understanding Search Results</summary>
+    <div class="help-content">
+        <p>
+            The search results table shows compounds that match your selected filters.
+            Each result may include the compound name, solvent, absorption maximum,
+            emission maximum, and quantum yield.
+        </p>
+
+        <ul>
+            <li><strong>Absorption λ<sub>max</sub>:</strong> wavelength where the compound absorbs light most strongly.</li>
+            <li><strong>Emission λ<sub>max</sub>:</strong> wavelength where the compound emits fluorescence most strongly.</li>
+            <li><strong>Quantum Yield:</strong> fluorescence efficiency of the compound, when available.</li>
+        </ul>
+
+        <p>
+            Click the View Details button to view structure images, metadata,
+            downloadable files, and full spectrum plots.
+        </p>
+
+        <img src="{{ url_for('static', filename='images/help_results_example.png') }}"
+             alt="Example search results"
+             class="help-screenshot">
+    </div>
+</details>
+
+<details class="help-section">
+    <summary>6. Comparing Compounds</summary>
+    <div class="help-content">
+        <p>
+            Search results include a Compare checkbox for each compound. Select two or
+            more compounds to add them to the compare basket on the side of the search page.
+            The basket can be expanded or collapsed while you continue searching.
+        </p>
+
+        <ul>
+            <li>Selections are saved while you run additional searches.</li>
+            <li>You can remove individual compounds from the basket.</li>
+            <li>You can clear all selected compounds at once.</li>
+            <li>Choose whether to compare absorption spectra, emission spectra, or both.</li>
+        </ul>
+
+        <p>
+            Click Compare Spectra to open the compare page. The compare page uses Chart.js
+            to display interactive spectra and includes controls for wavelength range,
+            normalization, line width, grid display, and spectra type.
+        </p>
+    </div>
+</details>
+
+<details class="help-section">
+    <summary>7. Compound Detail Pages</summary>
+    <div class="help-content">
+        <p>
+            Click View Details from a search result to open the compound detail page.
+            The detail page shows the structure image, metadata, spectrum information,
+            downloadable raw data files, and full spectrum plots when data files are available.
+        </p>
+
+        <ul>
+            <li>Missing metadata values are shown as “-”.</li>
+            <li>Absorption-only compounds still show absorption information and plots.</li>
+            <li>Full spectrum plots are generated automatically when the page loads.</li>
+            <li>Generated detail plots are temporary and are served from a temporary plot route.</li>
+        </ul>
+
+        <p>
+            Raw fluorescence and absorption files can be downloaded when available. These
+            files contain wavelength and intensity or absorbance values for additional analysis.
+        </p>
+
+        <img src="{{ url_for('static', filename='images/help_download_plot_example.png') }}"
+             alt="Example download and plot section"
+             class="help-screenshot">
+    </div>
+</details>
+
+<details class="help-section">
+    <summary>8. Downloading Data</summary>
+    <div class="help-content">
+        <p>
+            Raw spectrum text files are available from compound detail pages when the
+            database has a source file for that compound and spectrum type.
+        </p>
+
+        <ul>
+            <li><strong>Fluorescence data:</strong> wavelength and fluorescence intensity values.</li>
+            <li><strong>Absorption data:</strong> wavelength and absorbance values.</li>
+        </ul>
+    </div>
+</details>
+
+<details class="help-section">
+    <summary>9. Tips for Better Searching</summary>
+    <div class="help-content">
+        <ul>
+            <li>Check spelling carefully when entering a compound name</li>
+            <li>Use wavelength ranges when exact values are unknown</li>
+            <li>Try fewer filters if no results are returned</li>
+            <li>Use the compare basket to collect compounds across several searches</li>
+            <li>Open compound details to confirm whether raw absorption or emission files are available</li>
+        </ul>
+    </div>
+</details>
+
+<details class="help-section">
+    <summary>10. Report an Issue</summary>
+    <div class="help-content">
+        <p>
+        If you encounter a problem while using the database, please use the form below
+        to report the issue to the database team.
+        </p>
+
+        <form method="POST" action="{{ url_for('report_issue') }}">
+
+            <div class="form-section">
+                <label for="name">Name</label><br>
+                <input type="text" id="name" name="name" required>
+            </div>
+
+            <div class="form-section">
+                <label for="email">Email</label><br>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <div class="form-section">
+                <label for="message">Message</label><br>
+                <textarea id="message" name="message" rows="6" required></textarea>
+            </div>
+
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+</details>
+
+{% endblock %}

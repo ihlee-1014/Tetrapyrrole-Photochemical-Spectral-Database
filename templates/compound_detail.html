@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ compound.compound_name }} - TPSD
+{% endblock %}
+
+{% block content %}
+
+<a href="javascript:window.close();" class="back-button">
+	← Back to Results
+</a>
+
+<h1>Compound Details: {{ compound.compound_name }}</h1>
+
+<h2>Structure</h2>
+{% if compound.structure_file %}
+    {% set image_file = compound.structure_file.replace('.tif', '.png').replace('.tiff', '.png') %}
+
+    <div style="text-align: center; margin-top: 10px;">
+        <a href="{{ url_for('static', filename='uploaded_data/structures_png/' + image_file) }}" target="_blank">
+            <img src="{{ url_for('static', filename='uploaded_data/structures_png/' + image_file) }}"
+                 alt="Structure of {{ compound.compound_name }}"
+                 style="max-width: 400px; border: 1px solid #ccc; padding: 10px; border-radius: 8px; cursor: zoom-in;">
+        </a>
+    </div>
+{% else %}
+    <p><em>Structure image not available</em></p>
+{% endif %}
+
+<h2>Metadata</h2>
+<ul>
+    <li><strong>Compound ID:</strong> {{ compound.compound_id }}</li>
+    <li><strong>Compound Name:</strong> {{ compound.compound_name }}</li>
+    <li><strong>Lab Code:</strong> {{ compound.lab_code or '-' }}</li>
+    {% if compound.notes %}
+    <li><strong>Notes:</strong> {{ compound.notes }}</li>
+    {% endif %}
+</ul>
+
+<h2>Spectrum Information</h2>
+<ul>
+    <li><strong>Solvent:</strong> {{ compound.solvent or '-' }}</li>
+    <li><strong>Emission λ<sub>max</sub>:</strong> {% if compound.emission_lambda_max_nm %}{{ compound.emission_lambda_max_nm }} nm{% else %}-{% endif %}</li>
+    <li><strong>Absorption λ<sub>max</sub>:</strong> {% if compound.absorption_lambda_max_nm %}{{ compound.absorption_lambda_max_nm }} nm{% else %}-{% endif %}</li>
+    <li><strong>Quantum Yield:</strong> {{ compound.quantum_yield or '-' }}</li>
+    <li><strong>Instrument:</strong> {{ compound.measurement_instrument or '-' }}</li>
+    <li><strong>Year:</strong> {{ compound.measurement_year or '-' }}</li>
+    <li><strong>Reference:</strong> {{ compound.reference_code or '-' }}</li>
+    <li><strong>Investigator:</strong> {{ compound.investigator or '-' }}</li>
+</ul>
+
+<h3>Files</h3>
+{% if compound.ems_file_name %}
+    <p>
+        <a href="{{ url_for('download_file', file_type='emission', filename=compound.ems_file_name) }}">
+            Download Fluorescence Data (TXT)
+        </a>
+    </p>
+{% else %}
+    <p><em>Raw fluorescence file not available</em></p>
+{% endif %}
+
+{% if compound.abs_file_name %}
+    <p>
+        <a href="{{ url_for('download_file', file_type='absorption', filename=compound.abs_file_name) }}">
+            Download Absorption Data (TXT)
+        </a>
+    </p>
+{% else %}
+    <p><em>Raw absorption file not available</em></p>
+{% endif %}
+
+<h3>Spectrum Plots</h3>
+    <div class="spectra-grid">
+        <section class="spectra-panel">
+            <h4>Emission Spectrum</h4>
+            {% if detail_plots.fluorescence %}
+                <img src="{{ detail_plots.fluorescence }}" alt="Emission spectrum">
+            {% elif compound.ems_file_name %}
+                <p><em>Emission plot could not be generated from the available data file.</em></p>
+            {% else %}
+                <p><em>Emission data file not available.</em></p>
+            {% endif %}
+        </section>
+
+        <section class="spectra-panel">
+            <h4>Absorption Spectrum</h4>
+            {% if detail_plots.absorption %}
+                <img src="{{ detail_plots.absorption }}" alt="Absorption spectrum">
+            {% elif compound.abs_file_name %}
+                <p><em>Absorption plot could not be generated from the available data file.</em></p>
+            {% else %}
+                <p><em>Absorption data file not available.</em></p>
+            {% endif %}
+        </section>
+    </div>
+
+{% endblock %}

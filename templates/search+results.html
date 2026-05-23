@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}
+Search - TPSD
+{% endblock %}
+
+{% block content %}
+
+<h1>Search the Database</h1>
+
+<p>
+Use the form below to search for tetrapyrrole compounds by compound name,
+wavelength range, solvent, or fluorescence quantum yield.
+</p>
+
+<details class="help-section" id="searchPanel" open>
+    <summary>Search Options</summary>
+
+    <div class="help-content">
+        <form id="searchForm">
+
+            <div class="form-section">
+                <label for="compound_name">Compound Name:</label><br>
+                <input type="text" id="compound_name" name="compound_name">
+            </div>
+
+            <div class="form-section">
+                <label for="solvent">Solvent:</label><br>
+                <input type="text" id="solvent" name="solvent" placeholder="Example: toluene">
+            </div>
+
+            <div class="form-section">
+                <label for="abs_min">Absorption Wavelength Min (nm):</label><br>
+                <input type="number" id="abs_min" name="abs_min">
+            </div>
+
+            <div class="form-section">
+                <label for="abs_max">Absorption Wavelength Max (nm):</label><br>
+                <input type="number" id="abs_max" name="abs_max">
+            </div>
+
+            <div class="form-section">
+                <label for="em_min">Emission Wavelength Min (nm):</label><br>
+                <input type="number" id="em_min" name="em_min">
+            </div>
+
+            <div class="form-section">
+                <label for="em_max">Emission Wavelength Max (nm):</label><br>
+                <input type="number" id="em_max" name="em_max">
+            </div>
+
+            <div class="button-row">
+                <button type="submit">Search</button>
+                <button type="button" id="clearBtn">Clear</button>
+            </div>
+
+        </form>
+    </div>
+</details>
+
+<hr>
+
+<h2>Search Results</h2>
+
+<p id="statusMessage">
+Enter search criteria above and click Search to view results.
+</p>
+
+<aside id="compareBasket" class="compare-basket collapsed" aria-label="Compare basket">
+    <button type="button" id="toggleCompareBasket" class="compare-basket-toggle" aria-expanded="false">
+        Compare (<span id="selectedCount">0</span>)
+    </button>
+
+    <div class="compare-basket-panel">
+        <div class="compare-basket-header">
+            <strong>Compare Compounds</strong>
+            <button type="button" id="collapseCompareBasket" class="compare-basket-close" aria-label="Collapse compare basket">×</button>
+        </div>
+        <div id="selectedCompounds" class="selected-compounds">
+            No compounds selected.
+        </div>
+        <fieldset class="compare-spectrum-options">
+            <legend>Spectra to show</legend>
+            <label>
+                <input type="checkbox" id="compareAbsorption" value="absorption" checked>
+                Absorption
+            </label>
+            <label>
+                <input type="checkbox" id="compareFluorescence" value="fluorescence" checked>
+                Emission
+            </label>
+        </fieldset>
+        <div class="compare-actions">
+            <button type="button" id="compareBtn" disabled>Compare Spectra</button>
+            <button type="button" id="clearSelectionBtn">Clear Selection</button>
+        </div>
+    </div>
+</aside>
+
+<table id="resultsTable" style="display:none;">
+    <thead>
+        <tr>
+            <th>Compare</th>
+            <th>Compound ID</th>
+            <th>Compound Name</th>
+            <th>Solvent</th>
+	    <th>Absorption λmax (nm)</th>
+            <th>Emission λmax (nm)</th>
+            <th>Quantum Yield</th>
+            <th>Details</th>
+        </tr>
+    </thead>
+
+    <tbody id="resultsBody">
+    </tbody>
+</table>
+
+<script>
+const selectedStorageKey = "tpsdCompareCompounds";
+let selectedCompounds = loadSelectedCompounds();
+
+function loadSelectedCompounds() {
+    try {
+        return JSON.parse(sessionStorage.getItem(selectedStorageKey)) || {};
+    } catch (error) {
+        return {};
+    }
+}
+
+function saveSelectedCompounds() {
+    sessionStorage.setItem(selectedStorageKey, JSON.stringify(selectedCompounds));
+}
+
+function escapeHtml(value) {
+    return String(value ?? "-")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function updateCompareTray() {
+    const selected = Object.values(selectedCompounds);
+    const selectedCount = document.getElementById("selectedCount");
+    const selectedList = document.getElementById("selectedCompounds");
+    const compareBtn = document.getElementById("compareBtn");
+
+    selectedCount.textContent = selected.length;
+    compareBtn.disabled = selected.length < 2;
+
+    if (selected.length === 0) {
+        selectedList.textContent = "No compounds selected.";
+        return;
+    }
+
+    selectedList.innerHTML = selected
+        .map(compound => `
+            <span class="selected-chip">
+                ${escapeHtml(compound.compound_id)} - ${escapeHtml(compound.compound_name)}
+                <button type="button" class="remove-selected" data-compound-id="${escapeHtml(compound.compound_id)}">Remove</button>
+            </span>
+        `)
+        .join("");
+
+    document.querySelectorAll(".compare-checkbox").forEach(checkbox => {
+        checkbox.checked = Boolean(selectedCompounds[checkbox.value]);
+    });
+}
+
+function setCompareBasketOpen(isOpen) {
+    const basket = document.getElementById("compareBasket");
+    const toggle = document.getElementById("toggleCompareBasket");
+
+    basket.classList.toggle("collapsed", !isOpen);
+    toggle.setAttribute("aria-expanded", String(isOpen));
+}
+
+document.getElementById("searchForm").addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    const compoundName = document.getElementById("compound_name").value;
+    const solvent = document.getElementById("solvent").value;
+    const absMin = document.getElementById("abs_min").value;
+    const absMax = document.getElementById("abs_max").value;
+    const emMin = document.getElementById("em_min").value;
+    const emMax = document.getElementById("em_max").value;
+	
+    const url = 
+    	`api/search?compound_name=${encodeURIComponent(compoundName)}` +
+    	`&solvent=${encodeURIComponent(solvent)}` +
+	`&abs_min=${encodeURIComponent(absMin)}` +
+	`&abs_max=${encodeURIComponent(absMax)}` +
+	`&em_min=${encodeURIComponent(emMin)}` +
+	`&em_max=${encodeURIComponent(emMax)}`;
+
+    document.getElementById("statusMessage").textContent = "Searching...";
+    document.getElementById("resultsTable").style.display = "none";
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById("resultsBody");
+            tbody.innerHTML = "";
+
+            if (data.length === 0) {
+                document.getElementById("statusMessage").textContent = "No matching records found.";
+                document.getElementById("searchPanel").open = false;
+                return;
+            }
+
+            data.forEach(row => {
+                const tr = document.createElement("tr");
+                const compoundId = String(row.compound_id);
+                const isSelected = Boolean(selectedCompounds[compoundId]);
+
+                tr.innerHTML = `
+                    <td>
+                        <input type="checkbox"
+                               class="compare-checkbox"
+                               value="${escapeHtml(compoundId)}"
+                               data-compound-name="${escapeHtml(row.compound_name)}"
+                               ${isSelected ? "checked" : ""}>
+                    </td>
+                    <td>${escapeHtml(row.compound_id)}</td>
+                    <td>${escapeHtml(row.compound_name)}</td>
+                    <td>${escapeHtml(row.solvent)}</td>
+		    <td>${escapeHtml(row.absorption_lambda_max_nm)}</td>
+                    <td>${escapeHtml(row.emission_lambda_max_nm)}</td>
+                    <td>${escapeHtml(row.quantum_yield)}</td>
+                    <td>
+			<a class="detail-button" href="compound/${encodeURIComponent(row.compound_id)}" target="_blank" rel="noopener noreferrer">
+			View Details
+			</a>
+		    </td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById("statusMessage").textContent = `${data.length} result(s) found.`;
+            document.getElementById("resultsTable").style.display = "table";
+            updateCompareTray();
+
+            // Automatically collapse search form after search
+            document.getElementById("searchPanel").open = false;
+        })
+        .catch(error => {
+            console.error(error);
+            document.getElementById("statusMessage").textContent = "Search failed. Please try again.";
+        });
+});
+
+document.getElementById("clearBtn").addEventListener("click", function() {
+    document.getElementById("compound_name").value = "";
+    document.getElementById("solvent").value = "";
+    document.getElementById("abs_min").value = "";
+    document.getElementById("abs_max").value = "";
+    document.getElementById("em_min").value = "";
+    document.getElementById("em_max").value = "";
+
+    document.getElementById("resultsBody").innerHTML = "";
+    document.getElementById("resultsTable").style.display = "none";
+    document.getElementById("statusMessage").textContent = "Enter search criteria above and click Search to view results.";
+
+    // Reopen search form after clearing
+    document.getElementById("searchPanel").open = true;
+});
+
+document.getElementById("resultsBody").addEventListener("change", function(event) {
+    if (!event.target.classList.contains("compare-checkbox")) {
+        return;
+    }
+
+    const checkbox = event.target;
+    const compoundId = checkbox.value;
+
+    if (checkbox.checked) {
+        selectedCompounds[compoundId] = {
+            compound_id: compoundId,
+            compound_name: checkbox.dataset.compoundName || "Unknown compound"
+        };
+    } else {
+        delete selectedCompounds[compoundId];
+    }
+
+    saveSelectedCompounds();
+    updateCompareTray();
+});
+
+document.getElementById("selectedCompounds").addEventListener("click", function(event) {
+    if (!event.target.classList.contains("remove-selected")) {
+        return;
+    }
+
+    delete selectedCompounds[event.target.dataset.compoundId];
+    saveSelectedCompounds();
+    updateCompareTray();
+});
+
+document.getElementById("clearSelectionBtn").addEventListener("click", function() {
+    selectedCompounds = {};
+    saveSelectedCompounds();
+    updateCompareTray();
+});
+
+document.getElementById("compareBtn").addEventListener("click", function() {
+    const selectedIds = Object.keys(selectedCompounds);
+    const selectedSpectra = [];
+
+    if (document.getElementById("compareAbsorption").checked) {
+        selectedSpectra.push("absorption");
+    }
+
+    if (document.getElementById("compareFluorescence").checked) {
+        selectedSpectra.push("fluorescence");
+    }
+
+    if (selectedIds.length < 2) {
+        return;
+    }
+
+    if (selectedSpectra.length === 0) {
+        alert("Choose absorption, emission, or both before comparing.");
+        return;
+    }
+
+    const compareUrl =
+        `compare?ids=${encodeURIComponent(selectedIds.join(","))}` +
+        `&spectra=${encodeURIComponent(selectedSpectra.join(","))}`;
+
+    window.open(compareUrl, "_blank", "noopener,noreferrer");
+});
+
+document.getElementById("toggleCompareBasket").addEventListener("click", function() {
+    const basket = document.getElementById("compareBasket");
+    setCompareBasketOpen(basket.classList.contains("collapsed"));
+});
+
+document.getElementById("collapseCompareBasket").addEventListener("click", function() {
+    setCompareBasketOpen(false);
+});
+
+updateCompareTray();
+</script>
+
+{% endblock %}

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fluorescence Results</title>
+</head>
+<body>
+    <h1>Fluorescence Results (Toluene)</h1>
+
+    <table border="1">
+        <tr>
+            <th>Compound ID</th>
+            <th>Compound Name</th>
+            <th>Solvent</th>
+            <th>Emission λmax</th>
+            <th>Details</th>
+        </tr>
+
+        {% for row in results %}
+        <tr>
+            <td>{{ row.compound_id }}</td>
+            <td>{{ row.compound_name }}</td>
+            <td>{{ row.solvent }}</td>
+            <td>{{ row.emission_lambda_max_nm }}</td>
+            <td><a href="/compound/{{ row.compound_id }}">View</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
